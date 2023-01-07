@@ -1,0 +1,4 @@
+[DEFAULT]
+group_id = test0
+api_endpoint = https://api.aaron-us-west-2.daggerml.com
+
