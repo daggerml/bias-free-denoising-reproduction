@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "bfdn"
 description = ''
-readme = "README.md"
+# readme = "README.md"
 requires-python = ">=3.7"
 version = "0.0.1"
 license = "MIT"
