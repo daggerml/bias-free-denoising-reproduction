@@ -25,7 +25,7 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
-  "daggerml",
+  "daggerml[complete]==0.0.12",
   "executor-s3"
 ]
 
