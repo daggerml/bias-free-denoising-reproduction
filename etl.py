@@ -2,6 +2,7 @@
 import boto3
 import daggerml as dml
 import executor_s3 as s3
+import os
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -10,6 +11,7 @@ IMAGE_ROOT = Path(__file__).parent / 'submodules/bias_free_denoising/data'
 
 
 if __name__ == '__main__':
+    assert 'DML_BUCKET' in os.environ, 'Please set DML_BUCKET'
     with dml.Dag.new('bfdn.v0.data') as dag:
         s3c = boto3.client('s3')
         out = {'test': {}}
