@@ -35,6 +35,7 @@ Issues = "https://github.com/unknown/bfdn/issues"
 Source = "https://github.com/unknown/bfdn"
 
 [tool.hatch.envs.main]
+python = "310"
 dependencies = [
   "metaflow",
   "pandas",
