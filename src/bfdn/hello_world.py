@@ -2,6 +2,10 @@ from metaflow import FlowSpec, step
 from metaflow import Parameter
 #from submodules.bias_free_denoising.data.preprocess_bsd400 import data_augmentation, Im2Patch
 import numpy as np
+import os
+
+
+__here__ = os.path.dirname(__file__)
 
 def Im2Patch(img, win, stride=1):
     k = 0
@@ -47,12 +51,38 @@ def data_augmentation(image, mode):
         out = np.rot90(out, k=3)
         out = np.flipud(out)
     return np.transpose(out, (2, 0, 1))
+
+def _process_image(subset,img_path,scale_floats, patch_size, stride,aug_times):
+    from PIL import Image
+    import numpy as np
+    raw_img = Image.open(img_path)
+    # print(f"image shape: {img.size}")
+    if subset == "test":
+        return [ np.expand_dims(np.array(raw_img), 0) / 255.0]
+
+    h, w = raw_img.size
+    processed_images = list()
+    raw_img.show()
+    for k,v in enumerate(scale_floats):
+        img = raw_img.resize((int(h * v),int(w * v)),resample=3)
+        img = np.array(img)
+
+        img = np.expand_dims(img[:, :].copy(), 0) / 255.0
+        patches = Im2Patch(img, win=patch_size, stride=stride)
+        for n in range(patches.shape[3]):
+            data = patches[:, :, :, n].copy()
+            processed_images.append(data)
+            for m in range(aug_times - 1):
+                data_aug = data_augmentation(data, np.random.randint(1, 8))
+                processed_images.append(data_aug)
+    return processed_images
+
 class LinearFlow(FlowSpec):
     data_path = Parameter(
         "data-path",
         help="",
         type=str,
-        default=None,
+        default=os.path.abspath(os.path.join(__here__, "../../submodules/bias_free_denoising/data/")),
     )
     scales = Parameter(
         "scales",
@@ -78,42 +108,40 @@ class LinearFlow(FlowSpec):
         default=2,
         type=int,
     )
-
+    debug = Parameter(
+        "debug",
+        help="",
+        default=False,
+        type=bool,
+    )
     @step
     def start(self):
         from glob import glob
         import os
-        train_files =[("train", x) for x in sorted(glob(os.path.join(self.data_path, "Train400", "*.png")))][:5]
-        test_files = [("test", x) for x in sorted(glob(os.path.join(self.data_path, "Set12", "*.png")))][:5]
+        print(f" data path: {self.data_path}")
+        train_files =[("train", x) for x in sorted(glob(os.path.join(self.data_path, "Train400", "*.png")))]
+        test_files = [("test", x) for x in sorted(glob(os.path.join(self.data_path, "Test/Set12", "*.png")))]
+
+        if self.debug:
+            train_files = train_files[:5]
+            test_files = test_files[:5]
 
         self.scale_floats = [float(sc) for sc in self.scales.split(",")]
 
-        self.files = train_files + test_files
+        self.files = np.array_split(train_files + test_files,50)
         self.next(self.process_images,foreach="files")
 
     @step
     def process_images(self):
-        import cv2
-        import numpy as np
-        subset, img = self.input
-        img = cv2.imread(img)
-        if subset == "test":
-            self.processed_images = [ np.expand_dims(img[:, :, 0], 0) / 255.0]
-        else:
-            h, w, c = img.shape
-            self.processed_images = list()
-
-            for k,v in enumerate(self.scale_floats):
-                Img = cv2.resize(img, (int(h * v), int(w * v)), interpolation=cv2.INTER_CUBIC)
-                Img = np.expand_dims(Img[:, :, 0].copy(), 0) / 255.0
-                patches = Im2Patch(Img, win=self.patch_size, stride=self.stride)
-                for n in range(patches.shape[3]):
-                    data = patches[:, :, :, n].copy()
-                    self.processed_images.append(data)
-                    for m in range(self.aug_times - 1):
-                        data_aug = data_augmentation(data, np.random.randint(1, 8))
-                        self.processed_images.append(data_aug)
-
+        self.processed_images = {"train": list(), "test": list()}
+        for k,v in self.input:
+            self.processed_images[k].extend(_process_image(img_path=v,
+                                                           scale_floats=self.scale_floats,
+                                                           patch_size=self.patch_size,
+                                                           stride=self.stride,
+                                                           aug_times=self.aug_times,
+                                                           subset=k
+                                                           ))
 
         self.next(self.join)
 
@@ -122,16 +150,13 @@ class LinearFlow(FlowSpec):
         self.training_set  = []
         self.test_set = []
         for fanout in inputs:
-            if fanout.input[0] == "train":
-                self.training_set.extend(fanout.processed_images)
-            else:
-                self.test_set.extend(fanout.processed_images)
+            self.training_set.extend(fanout.processed_images["train"])
+            self.test_set.extend(fanout.processed_images["test"])
 
         self.next(self.end)
 
     @step
     def end(self):
-        print('the data artifact is still: %s' % self.my_var)
-
+        pass
 if __name__ == '__main__':
     LinearFlow()
