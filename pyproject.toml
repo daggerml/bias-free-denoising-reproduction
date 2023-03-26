@@ -49,7 +49,7 @@ dependencies = [
 [tool.hatch.envs.repro]
 python="38"
 dependencies = [
-
+  "metaflow",
   "absl-py==1.4.0",
   "cachetools==5.2.1",
   "certifi==2022.12.7",
