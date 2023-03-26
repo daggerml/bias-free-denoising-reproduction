@@ -25,8 +25,7 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
-  "daggerml[complete]==0.0.12",
-  "executor-s3"
+  "metaflow",
 ]
 
 [project.urls]
@@ -37,13 +36,15 @@ Source = "https://github.com/unknown/bfdn"
 [tool.hatch.envs.main]
 python = "310"
 dependencies = [
+  "crc32c",
+  "h5py",
   "metaflow",
-  "pandas",
-  "pyarrow",
-  "boto3",
-  "s3fs",
-  "daggerml",
-  "executor-s3",
+  "ml_collections",
+  "numpy",
+  "torch",
+  "torchvision",
+  "tensorboardX",
+  "scikit-image",
 ]
 
 [tool.hatch.envs.repro]
@@ -106,27 +107,3 @@ dependencies = [
 
 [tool.hatch.envs.default]
 python = "39"
-dependencies = [
-  "pytest",
-  "pytest-cov",
-]
-[tool.hatch.envs.default.scripts]
-cov = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/bfdn --cov=tests"
-no-cov = "cov --no-cov"
-
-[[tool.hatch.envs.test.matrix]]
-python = ["37", "38", "39", "310", "311"]
-
-[tool.coverage.run]
-branch = true
-parallel = true
-omit = [
-  "src/bfdn/__about__.py",
-]
-
-[tool.coverage.report]
-exclude_lines = [
-  "no cov",
-  "if __name__ == .__main__.:",
-  "if TYPE_CHECKING:",
-]

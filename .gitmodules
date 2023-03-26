@@ -1,3 +1,6 @@
 [submodule "submodules/bias_free_denoising"]
 	path = submodules/bias_free_denoising
 	url = git@github.com:LabForComputationalVision/bias_free_denoising.git
+[submodule "submodules/DnCNN-PyTorch"]
+	path = submodules/DnCNN-PyTorch
+	url = https://github.com/SaoYan/DnCNN-PyTorch.git
