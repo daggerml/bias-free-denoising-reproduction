@@ -68,20 +68,14 @@ def data_augmentation(image, mode):
 
 def _proc_img(rng, img_path, scale_floats, patch_size,
               stride, aug_times):
-    # FIXME pass in rng or seed
     # FIXME select distinct transformations (choice not randint)
     from PIL import Image
     import numpy as np
     raw_img = Image.open(img_path)
-    # print(f"image shape: {img.size}")
-    # if subset == "valid":
-    #     return [np.expand_dims(np.array(raw_img), 0) / 255.0]
-
     h, w = raw_img.size
     for k, v in enumerate(scale_floats):
         img = raw_img.resize((int(h * v), int(w * v)), resample=3)
         img = np.array(img)
-
         img = np.expand_dims(img[:, :].copy(), 0) / 255.0
         patches = Im2Patch(img, win=patch_size, stride=stride)
         for i in range(patches.shape[3]):
