@@ -43,6 +43,7 @@ dependencies = [
   "numpy",
   "torch",
   "torchvision",
+  "tensorboard",
   "tensorboardX",
   "scikit-image",
 ]

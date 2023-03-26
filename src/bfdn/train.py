@@ -12,10 +12,6 @@ from bfdn.models import DnCNN
 from bfdn.data import Data
 
 
-# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-
-
 def weights_init_kaiming(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
@@ -132,4 +128,4 @@ def main(batch_size, num_layers, learning_rate, num_epochs, milestone, seed,
 
 if __name__ == '__main__':
     from bfdn.etl import DATA_PATH
-    main(20, 3, 0.01, 20, 10, 42, True, f'{DATA_PATH}/results', debug=True)
+    main(50, 3, 0.01, 20, 10, 42, True, f'{DATA_PATH}/results', debug=True)
