@@ -46,25 +46,12 @@ Documentation = "https://github.com/unknown/bfdn#readme"
 Issues = "https://github.com/unknown/bfdn/issues"
 Source = "https://github.com/unknown/bfdn"
 
-[tool.hatch.envs.main]
-python = "310"
-dependencies = [
-  "crc32c",
-  "h5py",
-  "metaflow",
-  "ml_collections",
-  "numpy",
-  "torch",
-  "torchvision",
-  "tensorboard",
-  "tensorboardX",
-  "scikit-image",
-]
+[tool.hatch.envs.default]
+python = "39"
 
 [tool.hatch.envs.repro]
 python="38"
 dependencies = [
-  "metaflow",
   "absl-py==1.4.0",
   "cachetools==5.2.1",
   "certifi==2022.12.7",
@@ -118,6 +105,3 @@ dependencies = [
   "wheel==0.38.4",
   "zipp==3.11.0",
 ]
-
-[tool.hatch.envs.default]
-python = "39"
