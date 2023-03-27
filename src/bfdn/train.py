@@ -1,13 +1,14 @@
+from flax.metrics.tensorboard import SummaryWriter
 import os
 import math
+from ml_collections import ConfigDict
 import numpy as np
 from skimage.metrics import peak_signal_noise_ratio
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torchvision.utils import make_grid
 from torch.utils.data import DataLoader
-from tensorboardX import SummaryWriter
+from torchvision.utils import make_grid
 from bfdn.models import DnCNN
 from bfdn.data import Data
 
@@ -37,42 +38,38 @@ def batch_PSNR(img, imclean, data_range):
     return (PSNR/Img.shape[0])
 
 
-def main(batch_size, num_layers, learning_rate, num_epochs, milestone, seed,
-         use_bias, noise_low, noise_high, valid_noise, out_loc,
-         extra_images=[], debug=False):
-    torch.manual_seed(0)
-    rng = np.random.default_rng(seed)
+def main(conf: ConfigDict, out_loc, extra_images=[]):
+    writer = SummaryWriter(out_loc)
+    writer.hparams(dict(conf))
+    torch.manual_seed(conf.seed)
+    rng = np.random.default_rng(conf.seed + 1)
     if not os.path.isdir(out_loc):
         print('making directory:', out_loc)
         os.mkdir(out_loc)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    if debug:
-        train_set = Data(train=True, max_keys=20 * batch_size)
-    else:
-        train_set = Data(train=True)
-    print('# of training samples:', len(train_set))
+    train_set = Data(train=True)
     valid_set = Data(train=False)
+    print('# of training samples:', len(train_set))
     train_set = DataLoader(dataset=train_set,
                            num_workers=4,
-                           batch_size=batch_size,
+                           batch_size=conf.batch_size,
                            shuffle=True)
     from PIL import Image
     extras = {k: np.array(Image.open(f'data/extra/{k}'), dtype=np.float32)
               for k in extra_images}
     extras = {k: v.mean(axis=-1, keepdims=True) for k, v in extras.items()}
     extras = {k: np.transpose(v, (2, 0, 1)) for k, v in extras.items()}
-    net = DnCNN(channels=1, num_of_layers=num_layers, bias=use_bias)
+    net = DnCNN(channels=1, num_of_layers=conf.num_layers, bias=conf.use_bias)
     net.apply(weights_init_kaiming)
     criterion = nn.MSELoss()
     criterion.to(device)
     model = nn.DataParallel(net, device_ids=[0]).to(device)
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-    writer = SummaryWriter(out_loc)
-    for epoch in range(num_epochs):
-        if epoch == milestone:
-            print('epoch:', epoch, 'learning rate', learning_rate / 10.0)
+    optimizer = optim.Adam(model.parameters(), lr=conf.learning_rate)
+    for epoch in range(conf.num_epochs):
+        if epoch == conf.milestone:
+            print('epoch:', epoch, 'learning rate', conf.learning_rate / 10.0)
             for param_group in optimizer.param_groups:
-                param_group["lr"] = learning_rate / 10.0
+                param_group["lr"] = conf.learning_rate / 10.0
         model.train()
         for i, data in enumerate(train_set):
             model.zero_grad()
@@ -80,7 +77,7 @@ def main(batch_size, num_layers, learning_rate, num_epochs, milestone, seed,
             data.to(device)
             shape = data.shape
             noise = torch.zeros(shape)
-            stds = rng.uniform(noise_low, noise_high, size=shape[0])
+            stds = rng.uniform(conf.noise_low, conf.noise_high, size=shape[0])
             for j, s in enumerate(stds):
                 noise[i, ...] = torch.FloatTensor(shape[1:])\
                     .normal_(mean=0, std=s/255.)
@@ -93,41 +90,27 @@ def main(batch_size, num_layers, learning_rate, num_epochs, milestone, seed,
             # results
             train_recon = torch.clamp(X_train - pred_noise, 0., 1.)
             psnr_train = batch_PSNR(train_recon, data, 1.)
-            print("[epoch %d][%2d/%d] loss: %.4f PSNR_train: %.4f" %
+            print("[epoch %d][%4d/%4d] loss: %.4f PSNR_train: %.4f" %
                   (epoch+1, i+1, len(train_set), loss.item(), psnr_train))
             if i % 10 == 0:
-                writer.add_scalar('train loss', loss.item(), i)
-                writer.add_scalar('PSNR on training data', psnr_train, i)
+                writer.scalar('train loss', loss.item(), i)
+                writer.scalar('PSNR on training data', psnr_train, i)
+            if conf.debug and (i > 20):
+                break
         model.eval()
-        writer.add_image(
-            'train clean image',
-            make_grid(X_train, nrow=8, normalize=True, scale_each=True),
-            epoch
-        )
-        writer.add_image(
-            'train noisy image',
-            make_grid(data, nrow=8, normalize=True, scale_each=True),
-            epoch
-        )
-        writer.add_image(
-            'train reconstructed image',
-            make_grid(train_recon, nrow=8, normalize=True, scale_each=True),
-            epoch
-        )
-        # validate
         psnr_val = 0
         loss = 0
         for k, data in enumerate(valid_set):
             data = torch.unsqueeze(data, 0)
             print('data.shape', data.shape)
-            noise = torch.FloatTensor(data.size()).normal_(mean=0, std=valid_noise/255.)
+            noise = torch.FloatTensor(data.size()).normal_(mean=0, std=conf.valid_noise/255.)
             X_valid = (data + noise).to(device)
             pred_noise = model(X_valid)
             loss += criterion(pred_noise, noise).item()
             recon = torch.clamp(data - pred_noise, 0., 1.)
             psnr_val += batch_PSNR(recon, data, 1.)
             if k < 5:
-                writer.add_image(
+                writer.image(
                     f'valid/{k}_clean:noisy:recon',
                     make_grid([data[0, ...], X_valid[0, ...], recon[0]]),
                     epoch
@@ -136,21 +119,15 @@ def main(batch_size, num_layers, learning_rate, num_epochs, milestone, seed,
         psnr_val /= len(valid_set)
         loss /= len(valid_set)
         print("[epoch %d] valid loss: %.4f PSNR_val: %.4f" % (epoch+1, loss, psnr_val))
-        writer.add_scalar('PSNR on validation data', psnr_val, epoch)
+        writer.scalar('PSNR on validation data', psnr_val, epoch)
         for k, data in extras.items():
             X_valid = torch.unsqueeze(torch.from_numpy(data), 0)
             print('data.shape', data.shape)
             pred_noise = model(X_valid)
             recon = torch.clamp(X_valid - pred_noise, 0., 1.)
-            writer.add_image(
+            writer.image(
                 f'extra/{k}_noisy:recon',
                 make_grid([X_valid[0, ...], recon[0]]),
                 epoch
             )
         torch.save(model.state_dict(), os.path.join(out_loc, 'net.pth'))
-
-
-if __name__ == '__main__':
-    from bfdn.etl import DATA_PATH
-    main(50, 3, 0.01, 20, 10, 42, True, f'{DATA_PATH}/results',
-         ['balloons_noisy.png'], debug=True)

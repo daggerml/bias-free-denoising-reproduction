@@ -6,17 +6,13 @@ from bfdn.etl import DATA_PATH
 
 
 class Data(Dataset):
-    def __init__(self, train=True, max_keys=-1):
+    def __init__(self, train=True):
         super(Dataset, self).__init__()
         self.train = train
         fname = 'train' if train else 'valid'
         self.fname = f'{DATA_PATH}/{fname}.h5'
         with h5py.File(self.fname, 'r') as f:
-            keys = sorted(list(f.keys()))
-        if max_keys > 0:
-            keys = keys[:max_keys]
-        self.max_keys = max_keys
-        self.keys = keys
+            self.keys = sorted(list(f.keys()))
 
     def __len__(self):
         return len(self.keys)

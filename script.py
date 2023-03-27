@@ -2,6 +2,7 @@
 import argparse
 from bfdn.train import main
 from bfdn.util import DATA_PATH
+from ml_collections import ConfigDict
 
 
 def get_args():
@@ -35,10 +36,14 @@ def get_args():
                         help='noise level for validation')
     parser.add_argument("--debug", action='store_true',
                         help='run with fewer training images')
-    args = parser.parse_args()
+    args = vars(parser.parse_args())
+    conf = ConfigDict()
+    for k in set(args) - {'extra_images', 'out_loc'}:
+        conf[k] = args.pop(k)
+    args['conf'] = conf
     return args
 
 
 if __name__ == '__main__':
     args = get_args()
-    exit(main(**vars(args)))
+    exit(main(**args))

@@ -25,7 +25,20 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
+  "chex",
+  "crc32c",
+  "flax",
+  "h5py",
+  "jax[cpu]",
   "metaflow",
+  "ml_collections",
+  "numpy",
+  "optax",
+  "scikit-image",
+  "tensorboard",
+  "tensorflow",
+  "torch",
+  "torchvision",
 ]
 
 [project.urls]
