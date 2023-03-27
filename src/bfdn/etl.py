@@ -1,16 +1,7 @@
+from bfdn.util import RAW_DATA_PATH, DATA_PATH
 from metaflow import FlowSpec, step
 from metaflow import Parameter
 import numpy as np
-import os
-
-
-__here__ = os.path.dirname(__file__)
-RAW_DATA_PATH = os.path.abspath(
-    f"{__here__}/../../submodules/bias_free_denoising/data/"
-)
-DATA_PATH = os.path.abspath(
-    f"{__here__}/../../data/"
-)
 
 
 def Im2Patch(img, win, stride=1):
